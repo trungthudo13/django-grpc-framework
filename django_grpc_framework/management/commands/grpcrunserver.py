@@ -6,6 +6,7 @@ import errno
 import os
 
 import grpc
+from django import get_version
 from django.utils import autoreload
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -18,6 +19,9 @@ class Command(BaseCommand):
 
     # Validation is called explicitly each time the server is reloaded.
     requires_system_checks = False
+
+    if get_version() >= '4.1':
+        requires_system_checks = []
 
     def add_arguments(self, parser):
         parser.add_argument(
