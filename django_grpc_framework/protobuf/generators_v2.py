@@ -159,7 +159,7 @@ class ModelProtoGenerator:
         self._writer.write_line('message List%ssResponse {' % self.model.__name__)
         with self._writer.indent():
             self._writer.write_line(f'// The {self.model.__name__.lower()}s.')
-            self._writer.write_line(f'repeated {self.model.__name__} {self.model.__name__.lower()}s = 1')
+            self._writer.write_line(f'repeated {self.model.__name__} {self.model.__name__.lower()}s = 1;')
             self._writer.write_line('')
             self._writer.write_line('// A token, which can be sent as `page_token` to retrieve the next page.')
             self._writer.write_line('// If this field is omitted, there are no subsequent pages.')
