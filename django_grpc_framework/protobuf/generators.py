@@ -52,7 +52,7 @@ class ModelProtoGenerator:
     def get_proto(self):
         self._writer.write_line('syntax = "proto3";')
         self._writer.write_line('')
-        self._writer.write_line('package %s;' % self.package)
+        self._writer.write_line(f'package {self.package};')
         self._writer.write_line('')
         self._writer.write_line('import "google/protobuf/empty.proto";')
         self._writer.write_line('')
@@ -89,29 +89,23 @@ class ModelProtoGenerator:
     def _generate_message(self):
         self._writer.write_line('message %s {' % self.model.__name__)
         with self._writer.indent():
-            number = 0
-            for field_name, proto_type in self.get_fields().items():
-                number += 1
-                self._writer.write_line(
-                    '%s %s = %s;' %
-                    (proto_type, field_name, number)
-                )
-        self._writer.write_line('}')
-        self._writer.write_line('')
-        self._writer.write_line('message %sListRequest {' % self.model.__name__)
-        self._writer.write_line('}')
-        self._writer.write_line('')
-        self._writer.write_line('message %sRetrieveRequest {' % self.model.__name__)
+            for number, (field_name, proto_type) in enumerate(self.get_fields().items(), start=1):
+                self._writer.write_line(f'{proto_type} {field_name} = {number};')
+        self._extracted_from__generate_message_6('message %sListRequest {')
+        self._extracted_from__generate_message_6('message %sRetrieveRequest {')
         with self._writer.indent():
             pk_field_name = self.field_info.pk.name
             pk_proto_type = self.build_proto_type(
                 pk_field_name, self.field_info, self.model
             )
-            self._writer.write_line(
-                '%s %s = 1;' %
-                (pk_proto_type, pk_field_name)
-            )
+            self._writer.write_line(f'{pk_proto_type} {pk_field_name} = 1;')
         self._writer.write_line('}')
+
+    # TODO Rename this here and in `_generate_message`
+    def _extracted_from__generate_message_6(self, arg0):
+        self._writer.write_line('}')
+        self._writer.write_line('')
+        self._writer.write_line(arg0 % self.model.__name__)
 
     def get_fields(self):
         """
@@ -129,13 +123,11 @@ class ModelProtoGenerator:
         return fields
 
     def get_field_names(self):
-        field_names = self.field_names
-        if not field_names:
-            field_names = (
-                [self.field_info.pk.name]
-                + list(self.field_info.fields)
-                + list(self.field_info.forward_relations)
-            )
+        field_names = self.field_names or (
+                        [self.field_info.pk.name]
+                        + list(self.field_info.fields)
+                        + list(self.field_info.forward_relations)
+                    )
         return field_names
 
     def build_proto_type(self, field_name, field_info, model_class):
@@ -147,8 +139,7 @@ class ModelProtoGenerator:
             return self._build_relational_proto_type(relation_info)
         else:
             raise ValueError(
-                'Field name `%s` is not valid for model `%s`.' %
-                (field_name, model_class.__name__)
+                f'Field name `{field_name}` is not valid for model `{model_class.__name__}`.'
             )
 
     def _build_standard_proto_type(self, model_field):
@@ -169,7 +160,7 @@ class ModelProtoGenerator:
             to_field, info, relation_info.related_model
         )
         if relation_info.to_many:
-            proto_type = 'repeated ' + proto_type
+            proto_type = f'repeated {proto_type}'
         return proto_type
 
 
@@ -189,7 +180,7 @@ class _CodeWriter:
         self._indent -= 1
 
     def write_line(self, line):
-        for i in range(self._indent):
+        for _ in range(self._indent):
             self.buffer.write("    ")
         print(line, file=self.buffer)
 

@@ -3,7 +3,7 @@ import os
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.module_loading import import_string
 
-from django_grpc_framework.protobuf.generators import ModelProtoGenerator
+from django_grpc_framework.protobuf.generators_v2 import ModelProtoGenerator
 
 
 class Command(BaseCommand):
