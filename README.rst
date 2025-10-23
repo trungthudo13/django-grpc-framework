@@ -110,3 +110,8 @@ You can now run a gRPC client to access the service:
         stub = demo_pb2_grpc.UserControllerStub(channel)
         for user in stub.List(demo_pb2.UserListRequest()):
             print(user, end='')
+
+```sh
+pip install -U build                                                                                
+python -m build
+```

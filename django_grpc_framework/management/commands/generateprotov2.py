@@ -7,7 +7,7 @@ from django_grpc_framework.protobuf.generators_v3 import ModelProtoGenerator
 
 class Command(BaseCommand):
     help = "Generates proto."
-    operations = ["list", "create", "retrieve", "update", "delete"]
+    operations = ["", "list", "create", "retrieve", "update", "delete"]
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -52,11 +52,12 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"An error occurred: {e}")
         for operation in self.operations:
-            _filename= f"{operation}_{filename}"
+            _filename= f"{operation}_{filename}".strip("_")
             generator = ModelProtoGenerator(
                 model=model,
                 field_names=fields,
-                package=f"{operation}_{filename}s",
+                package=f"{operation}_{filename}s".strip("_"), 
+                packagebase=f"{filename}s",
                 operation=operation
             )
             proto = generator.get_proto()
