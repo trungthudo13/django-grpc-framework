@@ -39,7 +39,7 @@ class ModelProtoGenerator:
         models.Field: 'string',
     }
 
-    def __init__(self, model, field_names=None, package=None):
+    def __init__(self, model, field_names=None, package=None, operation=None):
         self.model = model
         self.field_names = field_names
         if not package:
@@ -48,6 +48,7 @@ class ModelProtoGenerator:
         self.type_mapping = ClassLookupDict(self.type_mapping)
         # Retrieve metadata about fields & relationships on the model class.
         self.field_info = model_meta.get_field_info(model)
+        self.operation = operation
         self._writer = _CodeWriter()
 
     def get_proto(self):
@@ -55,78 +56,41 @@ class ModelProtoGenerator:
         self._writer.write_line('')
         self._writer.write_line(f'package {self.package};')
         self._writer.write_line('')
-        # self._writer.write_line('import "google/api/annotations.proto";')
-        # self._writer.write_line('import "google/api/client.proto";')
-        # self._writer.write_line('import "google/api/field_behavior.proto";')
-        # self._writer.write_line('import "google/api/resource.proto";')
-        self._writer.write_line('import "google/protobuf/field_mask.proto";')
         self._writer.write_line('import "google/protobuf/empty.proto";')
         self._writer.write_line('')
         self._generate_service()
         self._writer.write_line('')
         self._generate_message()
         return self._writer.get_code()
-        # return loader.render_to_string("model.proto", {}, request=None, using=None)
 
     def _generate_service(self):
         self._writer.write_line('service %sController {' % self.model.__name__)
         with self._writer.indent():
-            self._writer.write_line(
-                'rpc List(List%ssRequest) returns (List%ssResponse) {' %
-                (self.model.__name__, self.model.__name__)
-            )
-            # with self._writer.indent():
-            #     self._writer.write_line('option (google.api.http) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'get: "/{self.model.__name__.lower()}s"')
-            #     self._writer.write_line('};')
-            self._writer.write_line('};')
-            self._writer.write_line(
-                'rpc Create(Create%sRequest) returns (%s) {' %
-                (self.model.__name__, self.model.__name__)
-            )
-            # with self._writer.indent():
-            #     self._writer.write_line('option (google.api.http) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'post: "/{self.model.__name__.lower()}s"')
-            #         self._writer.write_line(f'body: "{self.model.__name__.lower()}"')
-            #     self._writer.write_line('};')
-            #     self._writer.write_line(f'option (google.api.method_signature) = "{self.model.__name__.lower()}";')
-            self._writer.write_line('};')
-            self._writer.write_line(
-                'rpc Retrieve(Get%sRequest) returns (%s) {' %
-                (self.model.__name__, self.model.__name__)
-            )
-            # with self._writer.indent():
-            #     self._writer.write_line('option (google.api.http) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'get: "/{self.model.__name__.lower()}s/{self.field_info.pk.name}"')
-            #     self._writer.write_line('};')
-            #     self._writer.write_line(f'option (google.api.method_signature) = "{self.field_info.pk.name}";')
-            self._writer.write_line('};')
-            self._writer.write_line(
-                'rpc Update(Update%sRequest) returns (%s) {' %
-                (self.model.__name__, self.model.__name__)
-            )
-            # with self._writer.indent():
-            #     self._writer.write_line('option (google.api.http) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'patch: "/{self.model.__name__.lower()}s/{self.field_info.pk.name}"')
-            #         self._writer.write_line(f'body: "{self.model.__name__.lower()}"')
-            #     self._writer.write_line('};')
-            #     self._writer.write_line(f'option (google.api.method_signature) = "{self.model.__name__.lower()},update_mask";')
-            self._writer.write_line('};')
-            self._writer.write_line(
-                'rpc Destroy(Delete%sRequest) returns (google.protobuf.Empty) {' %
-                self.model.__name__
-            )
-            # with self._writer.indent():
-            #     self._writer.write_line('option (google.api.http) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'delete: "/{self.model.__name__.lower()}s/{self.field_info.pk.name}"')
-            #     self._writer.write_line('};')
-            #     self._writer.write_line(f'option (google.api.method_signature) = "{self.field_info.pk.name}";')
-            self._writer.write_line('};')
+            if 'list' == self.operation:
+                self._writer.write_line(
+                    'rpc List(List%ssRequest) returns (List%ssResponse) {};' %
+                    (self.model.__name__, self.model.__name__)
+                )
+            if 'create' == self.operation:
+                self._writer.write_line(
+                    'rpc Create(Create%sRequest) returns (%s) {};' %
+                    (self.model.__name__, self.model.__name__)
+                )
+            if 'retrieve' == self.operation:
+                self._writer.write_line(
+                    'rpc Retrieve(Get%sRequest) returns (%s) {};' %
+                    (self.model.__name__, self.model.__name__)
+                )
+            if 'update' == self.operation:
+                self._writer.write_line(
+                    'rpc Update(Update%sRequest) returns (%s) {};' %
+                    (self.model.__name__, self.model.__name__)
+                )
+            if 'delete' == self.operation:
+                self._writer.write_line(
+                    'rpc Destroy(Delete%sRequest) returns (google.protobuf.Empty) {};' %
+                    self.model.__name__
+                )
         self._writer.write_line('};')
 
     def _generate_message(self):
@@ -135,25 +99,30 @@ class ModelProtoGenerator:
             for number, (field_name, proto_type) in enumerate(self.get_fields().items(), start=1):
                 self._writer.write_line(f'{proto_type} {field_name} = {number};')
         self._writer.write_line('};')
-        self._writer.write_line('')
-        self._generated_list_response_message()
-        self._writer.write_line('')
-        self._generated_list_request_message()
-        self._writer.write_line('')
-        self._generated_create_request_message()
-        self._writer.write_line('')
-        self._generated_update_request_message()
-        self._writer.write_line('')
-        self._generated_delete_request_message()
-        self._writer.write_line('')
-        self._writer.write_line('message Get%sRequest {' % self.model.__name__)
-        with self._writer.indent():
-            pk_field_name = self.field_info.pk.name
-            pk_proto_type = self.build_proto_type(
-                pk_field_name, self.field_info, self.model
-            )
-            self._writer.write_line(f'{pk_proto_type} {pk_field_name} = 1;')
-        self._writer.write_line('};')
+        if 'list' == self.operation:
+            self._writer.write_line('')
+            self._generated_list_response_message()
+            self._writer.write_line('')
+            self._generated_list_request_message()
+        if 'create' == self.operation:
+            self._writer.write_line('')
+            self._generated_create_request_message()
+        if 'update' == self.operation:
+            self._writer.write_line('')
+            self._generated_update_request_message()
+        if 'delete' == self.operation:
+            self._writer.write_line('')
+            self._generated_delete_request_message()
+        if 'retrieve' == self.operation:
+            self._writer.write_line('')
+            self._writer.write_line('message Get%sRequest {' % self.model.__name__)
+            with self._writer.indent():
+                pk_field_name = self.field_info.pk.name
+                pk_proto_type = self.build_proto_type(
+                    pk_field_name, self.field_info, self.model
+                )
+                self._writer.write_line(f'{pk_proto_type} {pk_field_name} = 1;')
+            self._writer.write_line('};')
 
     def _generated_list_response_message(self):
         self._writer.write_line('message List%ssResponse {' % self.model.__name__)
