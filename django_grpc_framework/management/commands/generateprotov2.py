@@ -7,7 +7,7 @@ from django_grpc_framework.protobuf.generators_v3 import ModelProtoGenerator
 
 class Command(BaseCommand):
     help = "Generates proto."
-    operations = ["", "list", "create", "retrieve", "update", "delete"]
+    operations = ["", "list"]
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,7 +32,7 @@ class Command(BaseCommand):
         fields = options['fields'].split(',') if options['fields'] else None
         filepath = f"{(options['filepath'] or ".").rstrip("/")}/protos"
         generatedpath = f"{(options['filepath'] or ".").rstrip("/")}/generated"
-        filename= options['filename'] or model.__name__.lower()
+        filename = options['filename'] or model.__name__.lower()
         try:
             os.mkdir(filepath)
             print(f"Directory '{filepath}' created successfully.")

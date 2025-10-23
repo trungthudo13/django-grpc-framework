@@ -40,9 +40,10 @@ class ModelProtoGenerator:
     }
 
     def __init__(
-        self, model, field_names=None, package=None, packagebase=None, operation=None
+        self, model = None, serializer = None, field_names=None, package=None, packagebase=None, operation=None
     ):
         self.model = model
+        self.serializer = serializer
         self.field_names = field_names
         if not package:
             package = f"{model.__name__.lower()}s"
@@ -61,10 +62,10 @@ class ModelProtoGenerator:
         self._writer.write_line("")
         self._writer.write_line('import "google/protobuf/field_mask.proto";')
         self._writer.write_line('import "google/protobuf/empty.proto";')
-        if "" != self.operation:
+        if "list" == self.operation:
             self._writer.write_line(f'import "{self.model.__name__.lower()}.proto";')
-            self._writer.write_line("")
-            self._generate_service()
+        self._writer.write_line("")
+        self._generate_service()
         self._writer.write_line("")
         self._generate_message()
         return self._writer.get_code()
@@ -72,44 +73,39 @@ class ModelProtoGenerator:
     def _generate_service(self):
         if "list" == self.operation:
             self._writer.write_line("service List%sController {" % self.model.__name__)
-        elif "retrieve" == self.operation:
-            self._writer.write_line("service Retrieve%sController {" % self.model.__name__)
-        elif "create" == self.operation:
-            self._writer.write_line("service Create%sController {" % self.model.__name__)
-        elif "update" == self.operation:
-            self._writer.write_line("service Update%sController {" % self.model.__name__)
-        elif "delete" == self.operation:
-            self._writer.write_line("service Delete%sController {" % self.model.__name__)
+        else:
+            self._writer.write_line("service %sController {" % self.model.__name__)
         with self._writer.indent():
             if "list" == self.operation:
                 self._writer.write_line(
                     "rpc List(List%ssRequest) returns (List%ssResponse) {};"
                     % (self.model.__name__, self.model.__name__)
                 )
-            if "create" == self.operation:
+            else:
                 self._writer.write_line(
-                    "rpc Create(Create%sRequest) returns (%s.%s) {};"
+                    "rpc Create(%s) returns (%s.%s) {};"
                     % (self.model.__name__, self.packagebase, self.model.__name__)
                 )
-            if "retrieve" == self.operation:
                 self._writer.write_line(
                     "rpc Retrieve(Get%sRequest) returns (%s.%s) {};"
                     % (self.model.__name__, self.packagebase, self.model.__name__)
                 )
-            if "update" == self.operation:
                 self._writer.write_line(
-                    "rpc Update(Update%sRequest) returns (%s.%s) {};"
+                    "rpc Update(%s) returns (%s.%s) {};"
                     % (self.model.__name__, self.packagebase, self.model.__name__)
                 )
-            if "delete" == self.operation:
                 self._writer.write_line(
-                    "rpc Destroy(Delete%sRequest) returns (google.protobuf.Empty) {};"
+                    "rpc Destroy(%s) returns (google.protobuf.Empty) {};"
                     % self.model.__name__
                 )
         self._writer.write_line("};")
 
     def _generate_message(self):
-        if "" == self.operation:
+        if "list" == self.operation:
+            self._generated_list_response_message()
+            self._writer.write_line("")
+            self._generated_list_request_message()
+        else:
             self._writer.write_line("message %s {" % self.model.__name__)
             with self._writer.indent():
                 for number, (field_name, proto_type) in enumerate(
@@ -117,21 +113,6 @@ class ModelProtoGenerator:
                 ):
                     self._writer.write_line(f"{proto_type} {field_name} = {number};")
             self._writer.write_line("};")
-        if "list" == self.operation:
-            self._writer.write_line("")
-            self._generated_list_response_message()
-            self._writer.write_line("")
-            self._generated_list_request_message()
-        if "create" == self.operation:
-            self._writer.write_line("")
-            self._generated_create_request_message()
-        if "update" == self.operation:
-            self._writer.write_line("")
-            self._generated_update_request_message()
-        if "delete" == self.operation:
-            self._writer.write_line("")
-            self._generated_delete_request_message()
-        if "retrieve" == self.operation:
             self._writer.write_line("")
             self._writer.write_line("message Get%sRequest {" % self.model.__name__)
             with self._writer.indent():
@@ -162,78 +143,13 @@ class ModelProtoGenerator:
     def _generated_list_request_message(self):
         self._writer.write_line("message List%ssRequest {" % self.model.__name__)
         with self._writer.indent():
-            self._writer.write_line(
-                f"// The maximum number of {self.model.__name__.lower()}s to return."
-            )
-            self._writer.write_line("// The service may return fewer than this value.")
-            self._writer.write_line(
-                f"// If unspecified, at most 50 {self.model.__name__.lower()}s will be returned."
-            )
-            self._writer.write_line(
-                "// The maximum value is 1000; values above 1000 will be coerced to 1000."
-            )
             self._writer.write_line("int32 page_size = 1;")
-            self._writer.write_line("")
-            self._writer.write_line(
-                "// A page token, received from a previous `List` call."
-            )
-            self._writer.write_line("// Provide this to retrieve the subsequent page.")
-            self._writer.write_line(
-                "// When paginating, all other parameters provided to `List` must match"
-            )
-            self._writer.write_line(
-                "// The maximum value is 1000; values above 1000 will be coerced to 1000."
-            )
             self._writer.write_line("string page_token = 2;")
-            self._writer.write_line("")
             self._writer.write_line("int32 skip = 3;")
-            self._writer.write_line("")
             self._writer.write_line("string order_by = 4;")
-            self._writer.write_line("")
             self._writer.write_line("string filter = 5;")
-            self._writer.write_line("")
             self._writer.write_line("bool show_deleted = 6;")
 
-        self._writer.write_line("};")
-
-    def _generated_create_request_message(self):
-        self._writer.write_line("message Create%sRequest {" % self.model.__name__)
-        with self._writer.indent():
-            self._writer.write_line(f"// The {self.model.__name__.lower()} to create.")
-            # self._writer.write_line(f'{self.model.__name__} {self.model.__name__.lower()} = 1 [(google.api.field_behavior) = REQUIRED];')
-            self._writer.write_line(
-                f"{self.packagebase}.{self.model.__name__} {self.model.__name__.lower()} = 1;"
-            )
-        self._writer.write_line("};")
-
-    def _generated_update_request_message(self):
-        self._writer.write_line("message Update%sRequest {" % self.model.__name__)
-        with self._writer.indent():
-            self._writer.write_line(f"// The {self.model.__name__.lower()} to update.")
-            # self._writer.write_line(f'{self.model.__name__} {self.model.__name__.lower()} = 1 [(google.api.field_behavior) = REQUIRED];')
-            self._writer.write_line(
-                f"{self.packagebase}.{self.model.__name__} {self.model.__name__.lower()} = 1;"
-            )
-            self._writer.write_line("")
-            self._writer.write_line("// The list of fields to update.")
-            self._writer.write_line("google.protobuf.FieldMask update_mask = 2;")
-        self._writer.write_line("};")
-
-    def _generated_delete_request_message(self):
-        self._writer.write_line("message Delete%sRequest {" % self.model.__name__)
-        with self._writer.indent():
-            self._writer.write_line(f"// The {self.model.__name__.lower()} to delete.")
-            pk_field_name = self.field_info.pk.name
-            pk_proto_type = self.build_proto_type(
-                pk_field_name, self.field_info, self.model
-            )
-            self._writer.write_line(f"{pk_proto_type} {pk_field_name} = 1;")
-            # with self._writer.indent():
-            #     self._writer.write_line('(google.api.field_behavior) = REQUIRED,')
-            #     self._writer.write_line('(google.api.resource_reference) = {')
-            #     with self._writer.indent():
-            #         self._writer.write_line(f'type: "{self.model.__name__}"')
-            # self._writer.write_line('}];')
         self._writer.write_line("};")
 
     def get_fields(self):
