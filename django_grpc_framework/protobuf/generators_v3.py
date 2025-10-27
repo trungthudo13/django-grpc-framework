@@ -126,30 +126,20 @@ class ModelProtoGenerator:
     def _generated_list_response_message(self):
         self._writer.write_line("message List%ssResponse {" % self.model.__name__)
         with self._writer.indent():
-            self._writer.write_line(f"// The {self.model.__name__.lower()}s.")
             self._writer.write_line(
-                f"repeated {self.packagebase}.{self.model.__name__} {self.model.__name__.lower()}s = 1;"
+                f"repeated {self.packagebase}.{self.model.__name__} results = 1;"
             )
-            self._writer.write_line("")
-            self._writer.write_line(
-                "// A token, which can be sent as `page_token` to retrieve the next page."
-            )
-            self._writer.write_line(
-                "// If this field is omitted, there are no subsequent pages."
-            )
-            self._writer.write_line("string next_page_token = 2;")
+            self._writer.write_line("int32 count = 2;")
+            self._writer.write_line("int32 next_page = 3;")
+            self._writer.write_line("int32 prev_page = 4;")
         self._writer.write_line("};")
 
     def _generated_list_request_message(self):
         self._writer.write_line("message List%ssRequest {" % self.model.__name__)
         with self._writer.indent():
-            self._writer.write_line("int32 page_size = 1;")
-            self._writer.write_line("string page_token = 2;")
-            self._writer.write_line("int32 skip = 3;")
-            self._writer.write_line("string order_by = 4;")
-            self._writer.write_line("string filter = 5;")
-            self._writer.write_line("bool show_deleted = 6;")
-
+            self._writer.write_line("int32 page = 1;")
+            self._writer.write_line("string order_by = 2;")
+            self._writer.write_line("string filter = 3;")
         self._writer.write_line("};")
 
     def get_fields(self):
