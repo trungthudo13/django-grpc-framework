@@ -1,4 +1,6 @@
+import asyncio
 from functools import update_wrapper
+import inspect
 
 import grpc
 from django.db.models.query import QuerySet
@@ -26,13 +28,15 @@ class Service:
                     "accepts arguments that are already attributes of the "
                     "class." % (cls.__name__, key)
                 )
-        if isinstance(getattr(cls, 'queryset', None), QuerySet):
+        if isinstance(getattr(cls, "queryset", None), QuerySet):
+
             def force_evaluation():
                 raise RuntimeError(
-                    'Do not evaluate the `.queryset` attribute directly, '
-                    'as the result will be cached and reused between requests.'
-                    ' Use `.all()` or call `.get_queryset()` instead.'
+                    "Do not evaluate the `.queryset` attribute directly, "
+                    "as the result will be cached and reused between requests."
+                    " Use `.all()` or call `.get_queryset()` instead."
                 )
+
             cls.queryset._fetch_all = force_evaluation
 
         class Servicer:
@@ -40,18 +44,47 @@ class Service:
                 if not hasattr(cls, action):
                     return not_implemented
 
-                def handler(request, context):
-                    grpc_request_started.send(sender=handler, request=request, context=context)
+                controller_fn = getattr(cls, action)
+
+                async def handler_async(request, context):
+                    grpc_request_started.send(sender=handler_async, request=request, context=context)
                     try:
                         self = cls(**initkwargs)
                         self.request = request
                         self.context = context
                         self.action = action
-                        return getattr(self, action)(request, context)
+                        controller = getattr(self, action)
+                        result = controller(request, context)
+                        if inspect.isawaitable(result):
+                            return await result
+                        return result
                     finally:
-                        grpc_request_finished.send(sender=handler)
-                update_wrapper(handler, getattr(cls, action))
-                return handler
+                        grpc_request_finished.send(sender=handler_async)
+
+                def handler_sync(request, context):
+                    grpc_request_started.send(sender=handler_sync, request=request, context=context)
+                    try:
+                        self = cls(**initkwargs)
+                        self.request = request
+                        self.context = context
+                        self.action = action
+                        controller = getattr(self, action)
+                        result = controller(request, context)
+                        if inspect.isawaitable(result):
+                            # No running loop in gRPC sync worker threads; run the coroutine to completion here.
+                            return asyncio.run(result)
+                        return result
+                    finally:
+                        grpc_request_finished.send(sender=handler_sync)
+
+                # Choose the appropriate handler based on whether the view method is async.
+                if inspect.iscoroutinefunction(controller_fn):
+                    update_wrapper(handler_async, controller_fn)
+                    return handler_async
+                else:
+                    update_wrapper(handler_sync, controller_fn)
+                    return handler_sync
+
         update_wrapper(Servicer, cls, updated=())
         return Servicer()
 
@@ -59,5 +92,5 @@ class Service:
 def not_implemented(request, context):
     """Method not implemented"""
     context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-    context.set_details('Method not implemented!')
-    raise NotImplementedError('Method not implemented!')
+    context.set_details("Method not implemented!")
+    raise NotImplementedError("Method not implemented!")
